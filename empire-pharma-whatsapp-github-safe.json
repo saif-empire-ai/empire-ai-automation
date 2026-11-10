@@ -1,0 +1,2487 @@
+{
+  "name": "EMPIRE Pharma WhatsApp AI Agent - Public Demo",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "empire-pharma-demo-webhook",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        192
+      ],
+      "id": "1ebe682e-3af4-42a7-b3a6-c0ab904d57a1",
+      "name": "Webhook"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f0a6c9c7-1be2-4dae-b75c-6dcd1f410cba",
+              "name": "=customer_phone",
+              "value": "={{ $json.body.entry[0].changes[0].value.messages[0].from }}",
+              "type": "string"
+            },
+            {
+              "id": "7d68bc9b-1e39-4e77-bbe1-4736d3f3ed66",
+              "name": "=customer_name",
+              "value": "={{ $json.body.entry[0].changes[0].value.contacts[0].profile.name }}",
+              "type": "string"
+            },
+            {
+              "id": "6d135067-631e-4043-888a-90eed77dea21",
+              "name": "=message_text",
+              "value": "={{ $json.body.entry[0].changes[0].value.messages[0].text.body }}",
+              "type": "string"
+            },
+            {
+              "id": "292a07d4-b023-4d6b-a060-efbb476aa776",
+              "name": "=message_type",
+              "value": "={{ $json.body.entry[0].changes[0].value.messages[0].type }}",
+              "type": "string"
+            },
+            {
+              "id": "8f25cebb-1b62-47c7-943b-57bd6ebd8cc4",
+              "name": "=message_id",
+              "value": "={{ $json.body.entry[0].changes[0].value.messages[0].id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        672,
+        96
+      ],
+      "id": "16591370-e845-4bbf-9ee5-7e1928ba6f9f",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "b2d359fc-de3e-47af-9fe3-a8c9bb43c756",
+              "leftValue": "={{ $json.message_type }}",
+              "rightValue": "text",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        896,
+        96
+      ],
+      "id": "74d9e34e-08b4-4d0b-8511-41ab9abc1e70",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "pharma_products",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1120,
+        96
+      ],
+      "id": "70441b5d-478b-42ae-a98e-e993b3f12126",
+      "name": "Get row(s) in sheet"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst products = $input.all().map(item => item.json);\n\nconst customer = $('Edit Fields').first().json;\n\nreturn [\n  {\n    json: {\n      customer_phone: customer.customer_phone,\n      customer_name: customer.customer_name,\n      message_text: customer.message_text,\n      message_type: customer.message_type,\n      message_id: customer.message_id,\n      total_products: products.length,\n      product_catalog: JSON.stringify(products)\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        96
+      ],
+      "id": "d3380bb5-0396-4b46-b4a9-5327de18cc07",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message_text }}",
+        "options": {
+          "systemMessage": "=You are a professional WhatsApp assistant for a pharmaceutical distribution company.\n\nYour job is to help customers with product enquiries using the provided pharmaceutical product database.\n\nCUSTOMER INFORMATION:\nCustomer Name: {{ $json.customer_name }}\nCustomer Phone: {{ $json.customer_phone }}\n\nPRODUCT DATABASE:\n{{ $json.product_catalog }}\n\nINSTRUCTIONS:\n1. Answer product enquiries using only the provided product database.\n2. Search products by product name, product code, composition, or category.\n3. When a matching product exists, provide its product name, composition, category, pack size, and other relevant available details.\n4. Never invent medicine names, prices, stock quantities, discounts, or availability.\n5. If a product is not found, politely explain that it is not listed in the database.\n6. Products marked DEMO or fictional are test records. Clearly identify them as fictional and never present them as real medicines.\n7. Do not prescribe medicines, recommend dosages, or provide personalized medical treatment.\n8. Keep WhatsApp replies concise, clear, and professional.\n9. Respond in the customer's language when possible.\n10. If the customer greets you, introduce yourself briefly and ask how you can help.\n11. If a customer wants to place an order, request the necessary details without claiming the order has been placed.\n12. Do not claim that an action has been completed unless the connected workflow confirms it."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1568,
+        96
+      ],
+      "id": "0eaf61c6-832b-4a41-aebf-fd1a0a22bfb9",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1584,
+        320
+      ],
+      "id": "f350fe29-0d24-4ef5-8400-06d06784b2bb",
+      "name": "OpenAI Chat Model"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Edit Fields').first().json.customer_phone }}",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        1712,
+        320
+      ],
+      "id": "dff8f0c5-7c9e-43dc-87bf-b452dc24939d",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "text": "={{ \n\"Customer WhatsApp Name: \" + $('Edit Fields').first().json.customer_name +\n\"\\nCustomer Phone: \" + $('Edit Fields').first().json.customer_phone +\n\"\\nCustomer Message: \" + $('Edit Fields').first().json.message_text +\n\"\\nAI Response: \" + $('AI Agent').first().json.output\n}}",
+        "attributes": {
+          "attributes": [
+            {
+              "name": "customer_name",
+              "description": " Customer's name; use WhatsApp profile name unless customer explicitly provides another"
+            },
+            {
+              "name": "customer_phone",
+              "description": "Customer WhatsApp phone number"
+            },
+            {
+              "name": "product_name",
+              "description": "Name of the medicine customer wants to order"
+            },
+            {
+              "name": "product_code",
+              "description": "Extract the product code only if it is present in the provided information. Never invent a product code."
+            },
+            {
+              "name": "quantity",
+              "type": "number",
+              "description": "Number of packs requested"
+            },
+            {
+              "name": "delivery_address",
+              "description": "Full delivery address provided by customer"
+            },
+            {
+              "name": "payment_method",
+              "description": "COD, prepaid, or unknown"
+            },
+            {
+              "name": "order_confirmed",
+              "type": "boolean",
+              "description": "Return true only when the customer explicitly confirms the complete order including product, quantity, delivery address and payment method. Otherwise return false."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+      "typeVersion": 1.2,
+      "position": [
+        1920,
+        96
+      ],
+      "id": "3e9e033d-24ba-4c3e-85bc-f56c49a096f0",
+      "name": "Information Extractor"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        2000,
+        320
+      ],
+      "id": "f0e8d6bd-cda7-4d5e-a2b0-0542a8398404",
+      "name": "OpenAI Chat Model1"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst items = $input.all();\n\nreturn items.map(item => {\n  const order = item.json.output || {};\n  const missing = [];\n\n  if (!order.product_name) missing.push(\"product_name\");\n  if (!order.quantity || order.quantity <= 0)\n    missing.push(\"quantity\");\n  if (!order.delivery_address)\n    missing.push(\"delivery_address\");\n  if (!order.payment_method ||\n      order.payment_method === \"unknown\")\n    missing.push(\"payment_method\");\n\n  return {\n    json: {\n      ...order,\n      missing_fields: missing,\n      details_complete: missing.length === 0,\n      order_ready: false,\n      order_status: \"pending_validation\"\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2272,
+        96
+      ],
+      "id": "5b4008b9-dbb1-49b3-bacd-4a965dcf6ddc",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "7d6b1729-526f-445e-9d10-d485045dc09a",
+              "leftValue": "={{ $json.details_complete }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        2496,
+        96
+      ],
+      "id": "ce79ffbe-79e9-4c4f-be7b-730c67cbaf2a",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c84b7ac6-6e31-471f-aae8-36757ad55d41",
+              "name": "reply_message",
+              "value": "={{ \"Thank you! To proceed with your order, please provide:\\n\" + $json.missing_fields.map((f, i) => (i + 1) + \". \" + f.replace(/_/g, \" \")).join(\"\\n\") + \"\\n\\nYour order will be processed only after all details are provided and you explicitly confirm.\" }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        2720,
+        480
+      ],
+      "id": "640dd8d2-5c0d-4672-83fa-d57d0ba8efa1",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.chakrahq.com/v1/ext/plugin/whatsapp/REPLACE_WITH_PLUGIN_ID/api/v24.0/REPLACE_WITH_PHONE_NUMBER_ID/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "=\n{{ JSON.stringify({\n  messaging_product: \"whatsapp\",\n  to: $json.customer_phone,\n  type: \"text\",\n  text: {\n    body: $json.reply_message\n  }\n}) }}\n",
+        "options": {
+          "redirect": {
+            "redirect": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        2944,
+        480
+      ],
+      "id": "bea5dffc-cb3c-45f4-a0ca-e13ee0f9b9dd",
+      "name": "HTTP - missing detail reply"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "88e81c5d-c8c5-4acd-9f84-ee9f00245ab7",
+              "leftValue": "={{ $json.order_confirmed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        2720,
+        96
+      ],
+      "id": "99fb2db2-2cc7-408a-bdf6-099c95e8eed5",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8eecd361-c390-4d5f-9480-96bff729879e",
+              "name": "reply_message",
+              "value": "={{ \"Please confirm your order:\\n\\nProduct: \" + $json.product_name + \"\\nQuantity: \" + $json.quantity + \" packs\\nDelivery Address: \" + $json.delivery_address + \"\\nPayment Method: \" + $json.payment_method + \"\\n\\nReply CONFIRM to proceed or CANCEL to cancel your order.\" }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        2944,
+        288
+      ],
+      "id": "f68bbdfd-e875-4a2e-9913-ff99ac49ad2d",
+      "name": "Prepare Order Confirmation"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.chakrahq.com/v1/ext/plugin/whatsapp/REPLACE_WITH_PLUGIN_ID/api/v24.0/REPLACE_WITH_PHONE_NUMBER_ID/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  messaging_product: \"whatsapp\",\n  to: $json.customer_phone,\n  type: \"text\",\n  text: {\n    body: $json.reply_message\n  }\n}) }}",
+        "options": {
+          "redirect": {
+            "redirect": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        3168,
+        288
+      ],
+      "id": "8e110711-2aba-4673-bb94-56baff751592",
+      "name": "HTTP - Order Confirmation"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "\nconst order = $input.item.json;\n\nconst requiredFields = [\n  \"customer_phone\",\n  \"product_code\",\n  \"product_name\",\n  \"quantity\",\n  \"delivery_address\",\n  \"payment_method\"\n];\n\nconst missing = requiredFields.filter(field => {\n  const value = order[field];\n  return value === undefined ||\n    value === null ||\n    String(value).trim() === \"\" ||\n    String(value).toLowerCase() === \"unknown\";\n});\n\nconst confirmed = order.order_confirmed === true;\nconst quantity = Number(order.quantity);\n\nconst validQuantity =\n  Number.isInteger(quantity) && quantity > 0;\n\nconst ready =\n  missing.length === 0 &&\n  confirmed &&\n  validQuantity;\n\nreturn {\n  json: {\n    ...order,\n    missing_fields: missing,\n    validation_passed: ready,\n    order_status: ready\n      ? \"pending_stock_verification\"\n      : \"pending_validation\"\n  }\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3168,
+        96
+      ],
+      "id": "b9b68e75-6981-493e-9442-4c1990064d49",
+      "name": "Validate & Prepare Order"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"customer_name\": \"Demo Customer\",\n  \"customer_phone\": \"15550000000\",\n  \"product_code\": \"P001\",\n  \"product_name\": \"Demo Product\",\n  \"quantity\": 1,\n  \"delivery_address\": \"Demo City\",\n  \"payment_method\": \"COD\",\n  \"order_confirmed\": true,\n  \"message_id\": \"DEMO-MSG-001\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        2944,
+        96
+      ],
+      "id": "647616d1-e2dc-4734-81ef-a04b8e46980c",
+      "name": "Test Order Data"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        2720,
+        672
+      ],
+      "id": "39a298ef-7d0e-4c33-8222-a8206b06ed50",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "pharma_products",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "product_code",
+              "lookupValue": "={{ $json.product_code }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3392,
+        96
+      ],
+      "id": "3a3fb0a5-98ce-4798-b1b3-9b7ba1a0faee",
+      "name": "Check Medicine Stock",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "\nconst product = $input.item.json;\nconst order = $('Validate & Prepare Order').first().json;\n\nconst requested = Number(order.quantity);\nconst available = Number(product.in_stock);\n\nconst productFound =\n  product.product_code === order.product_code;\n\nconst stockAvailable =\n  productFound &&\n  Number.isFinite(available) &&\n  available >= requested;\n\nreturn {\n  json: {\n    ...order,\n    available_stock: productFound ? available : 0,\n    stock_available: stockAvailable,\n    unit_price: productFound ? Number(product.ptr) : null,\n    total_amount: stockAvailable\n      ? Number(product.ptr) * requested\n      : null,\n    order_status: stockAvailable\n      ? \"pending_order_processing\"\n      : \"insufficient_stock\"\n  }\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3616,
+        96
+      ],
+      "id": "19b3a673-9a61-4609-9e3d-5ffcc2f1f0b1",
+      "name": "Verify Stock Availability"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "42b12adf-39c8-4d85-8ad5-f08ee99ee71c",
+              "leftValue": "={{ $json.stock_available }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        3840,
+        96
+      ],
+      "id": "65c149e1-262e-4399-9b53-f451997462f8",
+      "name": "IF - Stock Available"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2ab5abf4-bd53-42b5-8804-304559b8315d",
+              "name": "reply_message",
+              "value": "={{ \"Hello \" + $json.customer_name +\n\",\\n\\nThank you for your order request.\" +\n\"\\n\\nMedicine: \" + $json.product_name +\n\"\\nRequested Quantity: \" + $json.quantity + \" packs\" +\n\"\\nAvailable Stock: \" + $json.available_stock + \" packs\" +\n\"\\n\\nUnfortunately, we cannot fulfill your requested quantity at the moment.\" +\n\"\\n\\nPlease contact our team for availability or alternative options.\" +\n\"\\n\\nThank you!\" }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        4064,
+        288
+      ],
+      "id": "b8a86fd3-5521-48a6-b716-55b55f5065c6",
+      "name": "Prepare Insufficient Stock Reply"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.chakrahq.com/v1/ext/plugin/whatsapp/REPLACE_WITH_PLUGIN_ID/api/v24.0/REPLACE_WITH_PHONE_NUMBER_ID/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  messaging_product: \"whatsapp\",\n  to: $json.customer_phone,\n  type: \"text\",\n  text: {\n    body: $json.reply_message\n  }\n}) }}",
+        "options": {
+          "redirect": {
+            "redirect": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        4288,
+        288
+      ],
+      "id": "864a2b6e-ebb5-4253-b7dc-fb715e20693c",
+      "name": "HTTP - Stock Unavailable"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "\nconst order = $input.item.json;\n\n// Step 1: Check stock availability\nif (order.stock_available !== true) {\n  throw new Error(\"Stock is not available\");\n}\n\n// Step 2: Check customer confirmation\nif (order.order_confirmed !== true) {\n  throw new Error(\"Customer has not confirmed the order\");\n}\n\n// Step 3: Validate quantity, price and stock\nconst quantity = Number(order.quantity);\nconst unitPrice = Number(order.unit_price);\nconst availableStock = Number(order.available_stock);\n\nif (\n  !Number.isInteger(quantity) ||\n  quantity <= 0 ||\n  !Number.isFinite(unitPrice) ||\n  unitPrice < 0 ||\n  !Number.isInteger(availableStock) ||\n  availableStock < quantity\n) {\n  throw new Error(\"Invalid order or stock values\");\n}\n\n// Step 4: Get original WhatsApp message ID\nconst sourceMessageId = String(\n  order.message_id || order.source_message_id || \"\"\n).trim();\n\nif (!sourceMessageId) {\n  throw new Error(\n    \"Missing WhatsApp message ID. Stable order ID cannot be generated.\"\n  );\n}\n\n// Step 5: Generate stable order ID\nconst orderId = \"ORD-\" + sourceMessageId;\n\n// Step 6: Calculate total and remaining stock\nconst totalAmount = Number(\n  (quantity * unitPrice).toFixed(2)\n);\n\nconst remainingStock = availableStock - quantity;\n\n// Step 7: Return prepared order data\nreturn {\n  json: {\n    ...order,\n    order_id: orderId,\n    source_message_id: sourceMessageId,\n    order_date: new Date().toISOString(),\n    unit_price: unitPrice,\n    total_amount: totalAmount,\n    remaining_stock: remainingStock,\n    order_status: \"pending_fulfillment\"\n  }\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4064,
+        96
+      ],
+      "id": "05e18108-a14a-4034-b110-d33ada97fbbd",
+      "name": "Prepare Order for Saving"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "pharma_products",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "product_code": "={{ $json.product_code }}",
+            "in_stock": "={{ $json.remaining_stock }}"
+          },
+          "matchingColumns": [
+            "product_code"
+          ],
+          "schema": [
+            {
+              "id": "product_code",
+              "displayName": "product_code",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "product_name",
+              "displayName": "product_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "composition",
+              "displayName": "composition",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "pack",
+              "displayName": "pack",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "mrp",
+              "displayName": "mrp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "ptr",
+              "displayName": "ptr",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "franchise_rate",
+              "displayName": "franchise_rate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "schedule",
+              "displayName": "schedule",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "gst_percent",
+              "displayName": "gst_percent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "image_url",
+              "displayName": "image_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "in_stock",
+              "displayName": "in_stock",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        7200,
+        96
+      ],
+      "id": "92a82c47-49c1-4d6e-8e45-00eca7eaf2bf",
+      "name": "Update row in sheet"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "pharma_products",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "product_code",
+              "lookupValue": "={{ $json.product_code }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        4960,
+        192
+      ],
+      "id": "25f48309-0eef-42f9-b9b7-9cddeca6b9bf",
+      "name": "Recheck Current Stock"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "\nconst product = $input.item.json;\nconst order = $('Restore New Order Data').first().json;\n\nconst stock = Number(product.in_stock);\nconst quantity = Number(order.quantity);\n\nif (!Number.isFinite(stock) || stock < 0) {\n  throw new Error(\"Invalid product stock\");\n}\n\nif (!Number.isInteger(quantity) || quantity <= 0) {\n  throw new Error(\"Invalid order quantity\");\n}\n\nconst stockAvailable = stock >= quantity;\n\nreturn {\n  json: {\n    ...order,\n    product_row_number: product.row_number,\n    latest_stock: stock,\n    requested_quantity: quantity,\n    stock_available_latest: stockAvailable,\n    remaining_stock: stockAvailable\n      ? stock - quantity\n      : null,\n    stock_update_status: \"PENDING\"\n  }\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5184,
+        192
+      ],
+      "id": "3df0197a-c809-4e82-89ef-6e7de19debe4",
+      "name": "Validate Latest Stock"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "pharma_orders",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "order_id",
+              "lookupValue": "={{ $json.order_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        4288,
+        96
+      ],
+      "id": "df281335-4ae7-40ef-bd6d-72ced600dea4",
+      "name": "Check Existing Order",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "bd3177a8-6013-43e3-b100-11038c9699c5",
+              "leftValue": "={{ $json.order_id }}",
+              "rightValue": "exists",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        4512,
+        96
+      ],
+      "id": "7f342ca0-2481-44b7-bd55-6285c4837ac1",
+      "name": "IF - Order Already Exists"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "\nconst order = $('Prepare Order for Saving').first().json;\n\n// Validate original order information\nif (!order.order_id || !order.source_message_id) {\n  throw new Error(\"Original order data is missing\");\n}\n\n// Validate customer and product details\nif (\n  !order.customer_phone ||\n  !order.product_code ||\n  !Number.isInteger(Number(order.quantity)) ||\n  Number(order.quantity) <= 0\n) {\n  throw new Error(\"Invalid customer or product details\");\n}\n\n// Restore original order data\nreturn {\n  json: {\n    ...order,\n\n    // Duplicate check result\n    duplicate_found: false,\n\n    // Order processing status\n    order_status: \"pending_fulfillment\",\n\n    // Stock must not be deducted at this step\n    stock_update_status: \"PENDING\",\n\n    // Order has not yet been saved by this branch\n    order_saved: false\n  }\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4736,
+        192
+      ],
+      "id": "dbe1e306-bb2c-4301-afdf-e1c5baa5938b",
+      "name": "Restore New Order Data"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "e590590c-0af4-48e0-b48c-58f33717919e",
+              "leftValue": "={{ $json.stock_available_latest }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        5408,
+        192
+      ],
+      "id": "a3dbb3be-2f40-4ba1-afb6-1abaa96241ff",
+      "name": "IF - Latest Stock Available"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "pharma_orders",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "order_id": "={{ $json.order_id }}",
+            "order_date": "={{ $json.order_date }}",
+            "customer_name": "={{ $json.customer_name }}",
+            "customer_phone": "={{ $json.customer_phone }}",
+            "product_code": "={{ $json.product_code }}",
+            "product_name": "={{ $json.product_name }}",
+            "quantity": "={{ $json.quantity }}",
+            "unit_price": "={{ $json.unit_price }}",
+            "total_amount": "={{ $json.total_amount }}",
+            "delivery_address": "={{ $json.delivery_address }}",
+            "order_status": "={{ $json.order_status }}",
+            "message_id": "={{ $json.source_message_id }}",
+            "stock_update_status": "PENDING"
+          },
+          "matchingColumns": [
+            "order_id"
+          ],
+          "schema": [
+            {
+              "id": "order_id",
+              "displayName": "order_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "order_date",
+              "displayName": "order_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "customer_name",
+              "displayName": "customer_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "customer_phone",
+              "displayName": "customer_phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "product_code",
+              "displayName": "product_code",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "product_name",
+              "displayName": "product_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "quantity",
+              "displayName": "quantity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "unit_price",
+              "displayName": "unit_price",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "total_amount",
+              "displayName": "total_amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "delivery_address",
+              "displayName": "delivery_address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "order_status",
+              "displayName": "order_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "message_id",
+              "displayName": "message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "stock_update_status",
+              "displayName": "stock_update_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        5632,
+        192
+      ],
+      "id": "e755b69a-e90f-497f-a444-00729a13248f",
+      "name": "Append or update row in sheet1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3aeac0b0-afaf-4714-95d5-04c2bec13e99",
+              "name": "duplicate_found",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "e644b9e6-268f-41f7-8645-1606eb971b41",
+              "name": "reply_message",
+              "value": "Your order has already been registered successfully. Please do not submit the same order again. Our team will process your existing order.",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        4736,
+        0
+      ],
+      "id": "f07457e9-96a8-405d-8045-e67870f03990",
+      "name": "Duplicate Order Response"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.chakrahq.com/v1/ext/plugin/whatsapp/REPLACE_WITH_PLUGIN_ID/api/v24.0/REPLACE_WITH_PHONE_NUMBER_ID/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "=\n{{ JSON.stringify({\n  messaging_product: \"whatsapp\",\n  to: String($json.customer_phone),\n  type: \"text\",\n  text: {\n    body: $json.reply_message\n  }\n}) }}\n",
+        "options": {
+          "redirect": {
+            "redirect": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        4960,
+        0
+      ],
+      "id": "03c43b4c-eb0b-44cc-a3f7-2136157501e1",
+      "name": "HTTP - Duplicate Order Reply"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "\nconst saved = $input.item.json;\n\nconst order = $('Validate Latest Stock').item.json;\n\nif (!saved.order_id || saved.order_id !== order.order_id) {\n  throw new Error(\"Saved order ID does not match validated order\");\n}\n\nconst latestStock = Number(order.latest_stock);\nconst quantity = Number(order.quantity);\n\nif (\n  !Number.isFinite(latestStock) ||\n  !Number.isInteger(quantity) ||\n  quantity <= 0 ||\n  latestStock < quantity\n) {\n  throw new Error(\"Invalid latest stock or quantity\");\n}\n\nreturn {\n  json: {\n    ...order,\n    remaining_stock: latestStock - quantity,\n    order_saved: true,\n    stock_update_status: \"PENDING\"\n  }\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5856,
+        192
+      ],
+      "id": "ec7dced8-8b75-4bee-a5eb-a2d86915be6a",
+      "name": "Restore Order Data After Save"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "pharma_orders",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "order_id",
+              "lookupValue": "={{ $json.order_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        6080,
+        192
+      ],
+      "id": "0e3b775a-1360-4ba6-9e8a-52074f6cc3eb",
+      "name": "Check Order Stock Status"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "60bb5185-128c-4aaa-a56c-24eefae4b01b",
+              "leftValue": "={{ $json.stock_update_status }}",
+              "rightValue": "PENDING",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        6304,
+        192
+      ],
+      "id": "cfa6f3fa-61a7-41fd-bbb2-7b2de892c921",
+      "name": "IF - Stock Not Yet Updated"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "pharma_products",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "product_code",
+              "lookupValue": "={{ $json.product_code }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        6528,
+        192
+      ],
+      "id": "f250375d-900f-41a9-bf47-69b23ad7824c",
+      "name": "Final Stock Recheck"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "\nconst product = $input.item.json;\nconst order = $(\"Restore Order Data After Save\").first().json;\n\nconst stock = Number(product.in_stock);\nconst quantity = Number(order.quantity);\n\nif (\n  product.product_code !== order.product_code ||\n  product.in_stock === \"\" ||\n  !Number.isInteger(stock) ||\n  stock < 0 ||\n  !Number.isInteger(quantity) ||\n  quantity <= 0\n) {\n  throw new Error(\"Invalid product, stock or quantity\");\n}\n\nreturn {\n  json: {\n    ...order,\n    product_row_number: product.row_number,\n    latest_stock: stock,\n    stock_available_final: stock >= quantity,\n    remaining_stock: stock >= quantity\n      ? stock - quantity\n      : null,\n    stock_update_status: \"PENDING\"\n  }\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6752,
+        192
+      ],
+      "id": "45708011-5e42-4dea-85d8-e47bc004bcaf",
+      "name": "Validate Final Stock"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "c2e8342d-2c90-47e3-81aa-87223e8e1458",
+              "leftValue": "={{ $json.stock_available_final }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        6976,
+        192
+      ],
+      "id": "14e05415-1a48-4121-ae32-8ec9b9f19c58",
+      "name": "IF - Final Stock Available"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "pharma_orders",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "order_id": "={{ $('Validate Final Stock').first().json.order_id }}",
+            "stock_update_status": "COMPLETED"
+          },
+          "matchingColumns": [
+            "order_id"
+          ],
+          "schema": [
+            {
+              "id": "order_id",
+              "displayName": "order_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "order_date",
+              "displayName": "order_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "customer_name",
+              "displayName": "customer_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "customer_phone",
+              "displayName": "customer_phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "product_code",
+              "displayName": "product_code",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "product_name",
+              "displayName": "product_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "quantity",
+              "displayName": "quantity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "unit_price",
+              "displayName": "unit_price",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "total_amount",
+              "displayName": "total_amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "delivery_address",
+              "displayName": "delivery_address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "order_status",
+              "displayName": "order_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "message_id",
+              "displayName": "message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "stock_update_status",
+              "displayName": "stock_update_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        7424,
+        96
+      ],
+      "id": "3a895d4f-3faf-4a7c-9e3f-e7bbecc4cee1",
+      "name": "Mark Stock Update Completed"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"customer_phone\": \"{{ $('Validate Final Stock').first().json.customer_phone }}\",\n  \"order_id\": \"{{ $('Validate Final Stock').first().json.order_id }}\",\n  \"reply_message\": \"{{ '✅ Your order has been received!\\\\n\\\\nOrder ID: ' + $('Validate Final Stock').first().json.order_id + '\\\\nProduct: ' + $('Validate Final Stock').first().json.product_name + '\\\\nQuantity: ' + $('Validate Final Stock').first().json.quantity + '\\\\nTotal: ₹' + $('Validate Final Stock').first().json.total_amount + '\\\\nStatus: Pending fulfillment\\\\n\\\\nThank you for your order!' }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        7648,
+        96
+      ],
+      "id": "2eacfa44-61ad-484f-8002-8ad1bebccadf",
+      "name": "Prepare Final Order Confirmation"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.chakrahq.com/v1/ext/plugin/whatsapp/REPLACE_WITH_PLUGIN_ID/api/v24.0/REPLACE_WITH_PHONE_NUMBER_ID/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "=\n{{ JSON.stringify({\n  messaging_product: \"whatsapp\",\n  to: $json.customer_phone,\n  type: \"text\",\n  text: {\n    preview_url: false,\n    body: $json.reply_message\n  }\n}) }}\n",
+        "options": {
+          "redirect": {
+            "redirect": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        7872,
+        96
+      ],
+      "id": "71feaab2-9d4b-4697-928d-a19f45ca6400",
+      "name": "HTTP - Final Order Confirmation"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a4fe7ff6-9216-4fcc-ba49-ee7c9846f11d",
+              "name": "customer_phone",
+              "value": "={{ $json.customer_phone }}",
+              "type": "string"
+            },
+            {
+              "id": "94b9dadd-2c05-4191-a3d6-5eb77901f189",
+              "name": "reply_message",
+              "value": "={{ \"❌ Sorry \" + $json.customer_name +\n\",\\n\\nYour order \" + $json.order_id +\n\" cannot be processed because sufficient stock is not available.\" +\n\"\\n\\nProduct: \" + $json.product_name +\n\"\\nRequested quantity: \" + $json.quantity +\n\"\\nAvailable stock: \" + $json.latest_stock +\n\"\\n\\nPlease contact our team for assistance.\" }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        7200,
+        288
+      ],
+      "id": "d84f01db-b033-436c-b20b-0a4826cf9513",
+      "name": "Prepare Final Stock Unavailable Reply"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "pharma_orders",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "order_id": "={{ $json.order_id }}",
+            "order_status": "stock_unavailable",
+            "stock_update_status": "NOT_UPDATED"
+          },
+          "matchingColumns": [
+            "order_id"
+          ],
+          "schema": [
+            {
+              "id": "order_id",
+              "displayName": "order_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "order_date",
+              "displayName": "order_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "customer_name",
+              "displayName": "customer_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "customer_phone",
+              "displayName": "customer_phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "product_code",
+              "displayName": "product_code",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "product_name",
+              "displayName": "product_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "quantity",
+              "displayName": "quantity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "unit_price",
+              "displayName": "unit_price",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "total_amount",
+              "displayName": "total_amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "delivery_address",
+              "displayName": "delivery_address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "order_status",
+              "displayName": "order_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message_id",
+              "displayName": "message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "stock_update_status",
+              "displayName": "stock_update_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        7424,
+        288
+      ],
+      "id": "25812977-2a98-46ad-9ecd-0976a85963d4",
+      "name": "Mark Order Stock Unavailable"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.chakrahq.com/v1/ext/plugin/whatsapp/REPLACE_WITH_PLUGIN_ID/api/v24.0/REPLACE_WITH_PHONE_NUMBER_ID/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  messaging_product: \"whatsapp\",\n  to: $('Prepare Final Stock Unavailable Reply').first().json.customer_phone,\n  type: \"text\",\n  text: {\n    body: $('Prepare Final Stock Unavailable Reply').first().json.reply_message\n  }\n}) }}",
+        "options": {
+          "redirect": {
+            "redirect": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        7648,
+        288
+      ],
+      "id": "5721dd08-b86e-43aa-9c3c-7e0210758ec9",
+      "name": "HTTP - Final Stock Unavailable"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "\nconst payload = $json.body;\n\nconst value = payload?.entry?.[0]?.changes?.[0]?.value;\nconst message = value?.messages?.[0];\n\nif (!message) {\n  throw new Error(\"No incoming WhatsApp message found\");\n}\n\nconst type = message.type || \"unknown\";\n\nreturn {\n  json: {\n    customer_phone: message.from,\n    message_id: message.id,\n    message_type: type,\n    user_text: message.text?.body || \"\",\n    media_id:\n      message.image?.id ||\n      message.audio?.id ||\n      null,\n    image_caption: message.image?.caption || \"\",\n    mime_type:\n      message.image?.mime_type ||\n      message.audio?.mime_type ||\n      null\n  }\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        192
+      ],
+      "id": "6707d8f6-0c15-4ef6-a50b-ce82588529ab",
+      "name": "Detect WhatsApp Message Type"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 4
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.message_type }}",
+                    "rightValue": "text",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "444b53cd-6e18-4e96-8699-d3fc003833e5"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Text"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 4
+                },
+                "conditions": [
+                  {
+                    "id": "dda8fa95-6404-41cb-b3ae-629fa08b0b47",
+                    "leftValue": "={{ $json.message_type }}",
+                    "rightValue": "image",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Image"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 4
+                },
+                "conditions": [
+                  {
+                    "id": "fb679045-8a64-4cfc-b417-039a0a92446e",
+                    "leftValue": "={{ $json.message_type }}",
+                    "rightValue": "audio",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Audio"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.5,
+      "position": [
+        448,
+        176
+      ],
+      "id": "d7fe26d6-ccb3-4d57-9037-6687cfb02504",
+      "name": "Switch - Message Type"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.chakrahq.com/v2/whatsapp/v19.0/media/{{ $json.media_id }}/show",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer REPLACE_WITH_YOUR_TOKEN"
+            }
+          ]
+        },
+        "options": {
+          "redirect": {
+            "redirect": {
+              "maxRedirects": 5
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        672,
+        288
+      ],
+      "id": "b10cde34-cd49-44fc-b05d-ac82ca4ffb3a",
+      "name": "Get WhatsApp Image URL"
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        896,
+        288
+      ],
+      "id": "f307f1ca-ec22-42c8-802d-a6cb5fa22e7a",
+      "name": "Analyze Medicine Image"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Detect WhatsApp Message Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Information Extractor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Information Extractor": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Information Extractor",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "HTTP - missing detail reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "Test Order Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Order Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Order Confirmation": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Order Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Prepare Order": {
+      "main": [
+        [
+          {
+            "node": "Check Medicine Stock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Test Order Data": {
+      "main": [
+        [
+          {
+            "node": "Validate & Prepare Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Test Order Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Medicine Stock": {
+      "main": [
+        [
+          {
+            "node": "Verify Stock Availability",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Stock Availability": {
+      "main": [
+        [
+          {
+            "node": "IF - Stock Available",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Stock Available": {
+      "main": [
+        [
+          {
+            "node": "Prepare Order for Saving",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Insufficient Stock Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Insufficient Stock Reply": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Stock Unavailable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Order for Saving": {
+      "main": [
+        [
+          {
+            "node": "Check Existing Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recheck Current Stock": {
+      "main": [
+        [
+          {
+            "node": "Validate Latest Stock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Existing Order": {
+      "main": [
+        [
+          {
+            "node": "IF - Order Already Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Order Already Exists": {
+      "main": [
+        [
+          {
+            "node": "Duplicate Order Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Restore New Order Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore New Order Data": {
+      "main": [
+        [
+          {
+            "node": "Recheck Current Stock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Latest Stock": {
+      "main": [
+        [
+          {
+            "node": "IF - Latest Stock Available",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Latest Stock Available": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append or update row in sheet1": {
+      "main": [
+        [
+          {
+            "node": "Restore Order Data After Save",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Duplicate Order Response": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Duplicate Order Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore Order Data After Save": {
+      "main": [
+        [
+          {
+            "node": "Check Order Stock Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Order Stock Status": {
+      "main": [
+        [
+          {
+            "node": "IF - Stock Not Yet Updated",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Stock Not Yet Updated": {
+      "main": [
+        [
+          {
+            "node": "Final Stock Recheck",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Stock Recheck": {
+      "main": [
+        [
+          {
+            "node": "Validate Final Stock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Final Stock": {
+      "main": [
+        [
+          {
+            "node": "IF - Final Stock Available",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Final Stock Available": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Final Stock Unavailable Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Mark Stock Update Completed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Stock Update Completed": {
+      "main": [
+        [
+          {
+            "node": "Prepare Final Order Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Final Order Confirmation": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Final Order Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Final Stock Unavailable Reply": {
+      "main": [
+        [
+          {
+            "node": "Mark Order Stock Unavailable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Order Stock Unavailable": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Final Stock Unavailable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect WhatsApp Message Type": {
+      "main": [
+        [
+          {
+            "node": "Switch - Message Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch - Message Type": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get WhatsApp Image URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get WhatsApp Image URL": {
+      "main": [
+        [
+          {
+            "node": "Analyze Medicine Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "tags": []
+}
